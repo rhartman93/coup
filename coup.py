@@ -22,6 +22,11 @@ class Player(object):
         def lookAtHand(self):
                 for card in self.cards:
                         print card
+        def loseCoins(self, amt):
+                if self.coins -  amt <= 0:
+                        print "Not enough coins"
+                else:
+                        self.coins -= amt
                 
 class Deck(object):
         def __init__(self):
@@ -56,7 +61,7 @@ class CoupGame(object):
                 self.deck = Deck()
                 #self.numCards = 15
                 self.destroyedCards = []
-                self.menu = "(s)tatus\ncoun(t)s\n(e)xchange\ns(h)uffle\n(c)oins\n(d)estroy\nta(x)\nstea(l)\n(i)ncome\n(f)oreign aid\n(o)ptions\n(q)uit: "
+                self.menu = "(s)tatus\ncoun(t)s\n(e)xchange\ns(h)uffle\n(c)oins\n(a)ssasinate\ncou(p)\nta(x)\nstea(l)\n(i)ncome\n(f)oreign aid\n(o)ptions\n(q)uit: "
                 self.players = {}
                 self.numPlayers = input("Number of players (2-6): ")
                 self.playerList = [] #Creating a list of player names to keep track of turns
@@ -83,27 +88,51 @@ class CoupGame(object):
                 self.active = True
                 
         def nextTurn(self):
-                if self.currTurn == self.numPlayers -1:
+                if self.currTurn == len(self.playerList) -1:
                         self.currTurn = 0
                 else:
                         self.currTurn += 1
                 self.currPlayer = self.playerList[self.currTurn]
                 
         def checkBluff(self, role):
-                caller = raw_input("Does anyone think " + cg.currPlayer + " is bluffing?")
+                caller = raw_input("Does anyone think " + self.currPlayer + " is bluffing?")
 
                 bluffed = False
                 if not caller == "no":
                         if role not in self.players[self.currPlayer].cards:
                                 print "Bluff Succesfully Called"
+                                self.destroyCard(self.currPlayer)
                                 bluffed = True
                         else:
                                 print caller + " loses a card"
+                                self.destroyCard(caller)
                 return bluffed
-                        
-                        
-        
+
+        def destroyCard(self, poorSoul):
+                print self.players[poorSoul].aboutMe()
                 
+                if len(self.players[poorSoul].cards) == 1:
+                       self.eliminatePlayer(poorSoul) #Will eliminate player
+                else:
+                       remove = input("Which to remove(0-1):")
+                       self.destroyedCards.append(self.players[name].cards[int(remove)]) 
+                       self.players[name].cards.remove(self.players[name].cards[int(remove)])
+                       print self.players[name].aboutMe()
+                       return
+                       
+        def eliminatePlayer(self, loser):
+                       
+                try:
+                       self.players.pop(loser)
+                except KeyError:
+                       print "Player name not found"
+
+                self.playerList.remove(loser)
+
+                if len(self.playerList) == 1:
+                       print "YAY " + self.playerList[0] + " has won!"
+                       self.active = False
+        
 
 
 
@@ -118,6 +147,10 @@ while cg.active:
         print cg.active
         print "It's " + cg.currPlayer + "'s turn."
         response = raw_input(cg.menu)
+
+        #Because response is updated at the end of the loop
+        #Any continue statements must be preceeded by a response
+        #prompt
         while response != 'q':
                 
                 
@@ -209,25 +242,43 @@ while cg.active:
                         cg.players[name2].coins -= 2
                         
                         #Destruction of a card (Coup or Assassination or failed bluff/challenge)
-                elif response == 'd':
-                        name = raw_input("Player name:")
-                        print cg.players[name].aboutMe()
-                        
-                        remove = input("Which to remove(0-1):")
-                        cg.destroyedCards.append(cg.players[name].cards[int(remove)]) 
-                        cg.players[name].cards.remove(cg.players[name].cards[int(remove)])
-                        print cg.players[name].aboutMe()
-
+                elif response == 'a':
+                        if cg.players[cg.currPlayer].coins < 3:
+                                print "You do not have enough coins for that"
+                                
+                                response = raw_input("Make your move: ")
+                                continue
+                        cg.players[cg.currPlayer].coins -= 3
+                        name = raw_input("Who are you going to assasinate?")
+                        if not cg.checkBluff("Assasin"):
+                                cg.destroyCard(name)
+                                
+                elif response == 'p':
+                        if cg.players[cg.currPlayer].coins < 7:
+                                print "You do not have enough coins for that"
+                                response = raw_input("Make your move: ")
+                                continue
+                        cg.players[cg.currPlayer].coins -= 7
+                        name = raw_input("Who's card are you launching a coup against? ")
+                        cg.destroyCard(name)
                 elif response == 'o':
                         print cg.menu
+                        name = raw_input("Make your move: ")
                         continue #Printing menu won't end turn
                 elif response == 'q':
                         cg.active = False
                         print "Quatting with cg.active = ", cg.active
                         break #break the loop
-                cg.nextTurn() #After someone takes a turn, increment
-                print "It's " + cg.currPlayer + "'s turn."
-                response = raw_input("Make your move: ")
+
+                #At this point game could be inactive due to a winner
+                #if so, just end it
+                
+                if cg.active:
+                       cg.nextTurn() #After someone takes a turn, increment
+                       print "It's " + cg.currPlayer + "'s turn."
+                       response = raw_input("Make your move: ")
+                else:
+                       break
 
         #Covers the case where q is the first option chosen
         if response == 'q':
