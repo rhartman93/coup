@@ -6,7 +6,7 @@
 #Anyways, enjoy!
 #!/usr/bin/python
 
-import sys, os, random, time
+import sys, os, random, time, ftimeout
 
 class Player(object):
         def __init__(self, card1, card2):
@@ -94,20 +94,29 @@ class CoupGame(object):
                         self.currTurn += 1
                 self.currPlayer = self.playerList[self.currTurn]
                 
-        def checkBluff(self, role):
-                caller = raw_input("Does anyone think " + self.currPlayer + " is bluffing?")
+        def checkBluff(self, bluffer, role):
+                caller = raw_input("Does anyone think " + bluffer + " is bluffing?")
 
                 bluffed = False
                 if not caller == "no":
-                        if role not in self.players[self.currPlayer].cards:
+                        if role not in self.players[bluffer].cards:
                                 print "Bluff Succesfully Called"
-                                self.destroyCard(self.currPlayer)
+                                self.destroyCard(bluffer)
                                 bluffed = True
                         else:
                                 print caller + " loses a card"
                                 self.destroyCard(caller)
                 return bluffed
 
+        def checkBlock(blocker, role):
+                blocked = False
+                blocking = raw_input("Are you blocking " + self.currPlayer + "? (y/n) ")
+                if blocking == 'y':
+                        if not checkBluff(blocker, role):
+                                blocked = True
+                return blocked
+                                
+                                
         def destroyCard(self, poorSoul):
                 print self.players[poorSoul].aboutMe()
                 
@@ -167,7 +176,7 @@ while cg.active:
                         name = cg.currPlayer
                         print cg.players[name].aboutMe()
 
-                        if not cg.checkBluff("Ambassador"):
+                        if not cg.checkBluff(name, "Ambassador"):
                                 
                                 print "2 cards dealt to", name
                                 
@@ -231,9 +240,23 @@ while cg.active:
                         #Foreign Aid
                 elif response == 'f':
                         name = cg.currPlayer
-                        cg.players[name].coins += 2
-                        cg.treasury -= 2
-                        
+                        """Currently using a for loop to check if any of
+                           the players want to blcok, for networked version
+                           select module should work cross platform because
+                           in windows it only takes a socket which would be
+                           in use in such a case. This would allow for a time
+                           delayed acceptance of input. """
+                        blocker = None
+                        try:
+                                blocker = ftimeout.timelimited(10, raw_input,"Someone blocking? ")
+                                if not checkBlock(blocker, "Duke"):
+                                        
+                                        cg.players[name].coins += 2
+                                        cg.treasury -= 2
+                        except ftimeout.TimeLimitExpired:
+                                print "No one blocked"
+                                cg.players[name].coins += 2
+                                cg.treasury -= 2
                         #Captain Ability - Steal
                 elif response == 'l':
                         name1 = cg.currPlayer
@@ -248,10 +271,11 @@ while cg.active:
                                 
                                 response = raw_input("Make your move: ")
                                 continue
-                        cg.players[cg.currPlayer].coins -= 3
                         name = raw_input("Who are you going to assasinate?")
-                        if not cg.checkBluff("Assasin"):
-                                cg.destroyCard(name)
+                        if not cg.checkBluff(cg.currPlayer,"Assasin"):
+                                cg.players[cg.currPlayer].coins -= 3
+                                if not cg.checkBlock(name, "Contessa"):
+                                        cg.destroyCard(name)
                                 
                 elif response == 'p':
                         if cg.players[cg.currPlayer].coins < 7:
@@ -276,7 +300,11 @@ while cg.active:
                 if cg.active:
                        cg.nextTurn() #After someone takes a turn, increment
                        print "It's " + cg.currPlayer + "'s turn."
-                       response = raw_input("Make your move: ")
+                       if cg.players[cg.currPlayer].coins >= 10:
+                               print "You have 10 or more coins "
+                               response = 'p'
+                       else: 
+                        response = raw_input("Make your move: ")
                 else:
                        break
 
